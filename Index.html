@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QUIZ TIME! - Game Show Board Interaktif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ['Fredoka', 'sans-serif'],
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            yellow: '#FFD166',
+                            red: '#EF476F',
+                            blue: '#118AB2',
+                            green: '#06D6A0',
+                            purple: '#8338EC',
+                            dark: '#0F172A',
+                            card: '#1E293B',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%);
+            color: #f8fafc;
+            min-height: 100vh;
+            user-select: none;
+        }
+
+        .font-display {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        /* 3D Game Show Buttons */
+        .btn-3d {
+            transition: all 0.15s ease;
+            box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35), inset 0 2px 3px rgba(255, 255, 255, 0.3);
+            position: relative;
+            top: 0;
+        }
+
+        .btn-3d:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 11px 0 rgba(0, 0, 0, 0.35), inset 0 2px 3px rgba(255, 255, 255, 0.4);
+            filter: brightness(1.1);
+        }
+
+        .btn-3d:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.2);
+        }
+
+        .tile-active {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            border: 2px solid #60a5fa;
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .tile-active:hover {
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.8), 0 8px 0 rgba(0,0,0,0.35);
+        }
+
+        .tile-completed {
+            background: linear-gradient(135deg, #334155 0%, #1e293b 100%) !important;
+            border: 2px solid #475569 !important;
+            color: #64748b !important;
+            box-shadow: none !important;
+            opacity: 0.65;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Pulse animation for timer warning */
+        @keyframes pulse-red {
+            0%, 100% { color: #ef476f; transform: scale(1); }
+            50% { color: #ff0033; transform: scale(1.15); }
+        }
+
+        .timer-warning {
+            animation: pulse-red 0.5s infinite;
+        }
+
+        @keyframes bounce-subtle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .leader-badge {
+            animation: bounce-subtle 2s infinite ease-in-out;
+        }
+
+        /* Canvas for Confetti */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen p-2 md:p-6 overflow-x-hidden">
+    <!-- Canvas for Confetti -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <header class="text-center mb-6">
+        <div class="inline-block relative">
+            <h1 class="font-display text-4xl sm:text-6xl md:text-7xl font-bold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-400 to-purple-400 drop-shadow-[0_4px_10px_rgba(239,68,68,0.5)]">
+                QUIZ TIME!
+            </h1>
+            <span class="absolute -top-3 -right-6 bg-yellow-400 text-slate-900 text-xs sm:text-sm font-extrabold px-2 py-0.5 rounded-full rotate-12 shadow-md">
+                GAME SHOW
+            </span>
+        </div>
+        <p class="font-display text-lg sm:text-xl text-cyan-300 mt-1 tracking-wide">
+            "Pilih tingkat poinnya, buktikan kehebatan timmu!"
+        </p>
+    </header>
+
+    <section class="max-w-7xl mx-auto w-full mb-6">
+        <div class="bg-slate-800/80 backdrop-blur border-2 border-slate-700 rounded-2xl p-4 shadow-2xl">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4 border-b border-slate-700/80 pb-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-trophy text-yellow-400 text-2xl"></i>
+                    <h2 class="font-display text-xl font-bold text-white tracking-wide">PAPAN SKOR TIM</h2>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="openLeaderboardModal()" class="btn-3d bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-display font-bold text-xs sm:text-sm px-3.5 py-1.5 rounded-xl flex items-center gap-2 shadow-lg">
+                        <i class="fa-solid fa-ranking-star text-base"></i>
+                        <span>PAPAN PERINGKAT</span>
+                    </button>
+
+                    <div class="flex items-center gap-2 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-700">
+                        <label for="team-count-select" class="text-xs text-slate-400 font-semibold uppercase">Jumlah Tim:</label>
+                        <select id="team-count-select" class="bg-slate-800 text-yellow-400 font-bold text-sm px-2 py-1 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-yellow-400" onchange="changeTeamCount(this.value)">
+                            <option value="2">2 Tim (A & B)</option>
+                            <option value="3">3 Tim (A, B, C)</option>
+                            <option value="4">4 Tim (A, B, C, D)</option>
+                            <option value="5" selected>5 Tim (A, B, C, D, E)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="scoreboard-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                <!-- Teams cards injected here dynamically -->
+            </div>
+        </div>
+    </section>
+
+    <main class="max-w-7xl mx-auto w-full flex-grow mb-6">
+        <div id="game-board" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 max-w-6xl mx-auto">
+            <!-- Dynamic Grid injected via JS -->
+        </div>
+    </main>
+
+    <footer class="max-w-7xl mx-auto w-full mt-auto flex flex-wrap items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 text-sm">
+        <div class="flex flex-wrap items-center gap-3">
+            <button id="sound-toggle-btn" onclick="toggleSound()" class="btn-3d bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2">
+                <i id="sound-icon" class="fa-solid fa-volume-high text-yellow-400"></i>
+                <span id="sound-text">SOUND ON</span>
+            </button>
+            <button onclick="toggleFullscreen()" class="btn-3d bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2">
+                <i class="fa-solid fa-expand text-cyan-400"></i>
+                <span>FULLSCREEN</span>
+            </button>
+            <button onclick="openDataModal()" class="btn-3d bg-indigo-700 hover:bg-indigo-600 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2">
+                <i class="fa-solid fa-database text-purple-300"></i>
+                <span>KELOLA SOAL</span>
+            </button>
+        </div>
+
+        <div>
+            <button onclick="requestResetGame()" class="btn-3d bg-red-600 hover:bg-red-500 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span>RESET PERMAINAN</span>
+            </button>
+        </div>
+    </footer>
+
+    <div id="select-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border-2 border-slate-600 rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative transform transition-all scale-100">
+            <button onclick="closeModal('select-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="text-center mb-6">
+                <span id="select-category-badge" class="bg-cyan-500/20 text-cyan-300 font-bold px-4 py-1.5 rounded-full text-sm uppercase tracking-wider border border-cyan-500/30">
+                    KATEGORI UTAMA
+                </span>
+                <h3 id="select-points-heading" class="font-display text-4xl font-bold text-yellow-400 mt-3">
+                    100 POIN
+                </h3>
+                <p class="text-slate-300 text-sm mt-1">Pilih salah satu dari 6 pertanyaan yang tersedia:</p>
+            </div>
+
+            <div id="question-buttons-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                <!-- Question option buttons generated dynamically -->
+            </div>
+
+            <div class="text-center mt-4 border-t border-slate-700 pt-3">
+                <span id="select-status-text" class="text-xs text-slate-400">
+                    Tersedia: 6 / 6 Pertanyaan
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div id="question-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-yellow-500/50 rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl relative flex flex-col max-h-[92vh] overflow-y-auto">
+            
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-4 mb-4">
+                <div>
+                    <span id="qmodal-cat-badge" class="bg-purple-600/30 text-purple-300 font-bold px-3 py-1 rounded-lg text-xs uppercase border border-purple-500/40">
+                        KATEGORI
+                    </span>
+                    <span id="qmodal-point-badge" class="ml-2 bg-yellow-500/30 text-yellow-300 font-bold px-3 py-1 rounded-lg text-xs border border-yellow-500/40">
+                        100 POIN
+                    </span>
+                </div>
+                <span id="qmodal-index-badge" class="text-sm font-bold text-slate-400">
+                    PERTANYAAN #1
+                </span>
+            </div>
+
+            <!-- Timer Container -->
+            <div class="bg-slate-800/90 rounded-2xl p-4 mb-6 text-center border border-slate-700 relative overflow-hidden">
+                <div class="text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">TIMER PERTANYAAN</div>
+                <div id="timer-display" class="font-display text-5xl sm:text-6xl font-bold text-yellow-400">
+                    25
+                </div>
+                
+                <div class="flex justify-center gap-2 mt-3">
+                    <button id="timer-start-btn" onclick="startTimer()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1">
+                        <i class="fa-solid fa-play"></i> START (Spasi)
+                    </button>
+                    <button onclick="pauseTimer()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1">
+                        <i class="fa-solid fa-pause"></i> PAUSE
+                    </button>
+                    <button onclick="resetTimer()" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-left"></i> RESET (R)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Question Area -->
+            <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 mb-6 min-h-[120px] flex items-center justify-center text-center">
+                <p id="qmodal-question-text" class="text-xl sm:text-2xl md:text-3xl font-bold text-white leading-relaxed whitespace-pre-line">
+                    Teks pertanyaan...
+                </p>
+            </div>
+
+            <!-- Answer Box -->
+            <div id="qmodal-answer-box" class="hidden bg-emerald-950/60 border-2 border-emerald-500/50 rounded-2xl p-6 mb-6 text-left">
+                <span class="text-xs font-bold text-emerald-400 uppercase tracking-widest block mb-2 text-center">
+                    <i class="fa-solid fa-key"></i> PEDOMAN JAWABAN & SKOR:
+                </span>
+                <p id="qmodal-answer-text" class="text-base sm:text-lg font-medium text-emerald-100 whitespace-pre-line leading-relaxed">
+                    Kunci jawaban...
+                </p>
+
+                <div class="mt-4 pt-3 border-t border-emerald-800/60 text-center">
+                    <span class="text-xs text-slate-300 block mb-2 font-semibold">Beri Poin Langsung Ke Tim:</span>
+                    <div id="award-teams-container" class="flex flex-wrap justify-center gap-2">
+                        <!-- Quick award buttons injected -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-4 mt-auto">
+                <button id="qmodal-reveal-btn" onclick="revealAnswer()" class="btn-3d bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-display text-xl font-bold px-8 py-3 rounded-2xl flex items-center gap-2">
+                    <i class="fa-solid fa-eye"></i> LIHAT JAWABAN
+                </button>
+                <button id="qmodal-finish-btn" onclick="finishQuestion()" class="btn-3d bg-blue-600 hover:bg-blue-500 text-white font-display text-xl font-bold px-8 py-3 rounded-2xl hidden flex items-center gap-2">
+                    <i class="fa-solid fa-check"></i> SELESAI
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="leaderboard-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-yellow-500/60 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <button onclick="closeModal('leaderboard-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-trophy text-5xl text-yellow-400 mb-2 drop-shadow-[0_0_15px_rgba(250,204,21,0.6)]"></i>
+                <h3 class="font-display text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-amber-300 to-yellow-500">
+                    PAPAN PERINGKAT TIM
+                </h3>
+                <p class="text-slate-400 text-sm mt-1">Klasemen Skor Sementara</p>
+            </div>
+
+            <div id="leaderboard-ranks-list" class="space-y-3 overflow-y-auto my-2 pr-1">
+                <!-- Ranked items injected -->
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center">
+                <button onclick="triggerConfetti()" class="bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 font-bold text-xs px-4 py-2 rounded-xl border border-purple-500/30 flex items-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> SELEBRASI CONFETTI
+                </button>
+                <button onclick="closeModal('leaderboard-modal')" class="btn-3d bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-display font-bold px-6 py-2 rounded-xl text-sm">
+                    TUTUP
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-score-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-3xl max-w-sm w-full p-6 shadow-2xl relative text-center">
+            <button onclick="closeModal('custom-score-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            
+            <h4 id="custom-score-team-title" class="font-display text-2xl font-bold text-yellow-400 mb-1">
+                EDIT SKOR TIM
+            </h4>
+            <p class="text-xs text-slate-400 mb-4">Masukkan jumlah poin baru untuk tim ini:</p>
+
+            <input type="number" id="custom-score-input" class="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-center text-3xl font-display font-bold text-yellow-300 focus:outline-none focus:ring-2 focus:ring-yellow-400 mb-5" step="10">
+
+            <div class="flex gap-2 justify-center">
+                <button onclick="closeModal('custom-score-modal')" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs">
+                    Batal
+                </button>
+                <button onclick="saveCustomScore()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-6 py-2 rounded-xl text-xs">
+                    Simpan Skor
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="data-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-3xl max-w-4xl w-full p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <button onclick="closeModal('data-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-2xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h3 class="font-display text-2xl font-bold text-yellow-400 mb-2">
+                <i class="fa-solid fa-database"></i> EDISI & MANAJEMEN SOAL
+            </h3>
+            <p class="text-xs text-slate-300 mb-3">
+                Setiap Level Poin (100-500) berisi <span class="text-yellow-300 font-bold">6 Pertanyaan</span>. Total <span class="text-emerald-400 font-bold">30 Soal</span>.
+            </p>
+
+            <div class="flex items-center gap-2 mb-3">
+                <button onclick="exportJSONFile()" class="bg-purple-700 hover:bg-purple-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1">
+                    <i class="fa-solid fa-download"></i> Ekspor File JSON
+                </button>
+                <label class="bg-blue-700 hover:bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 cursor-pointer">
+                    <i class="fa-solid fa-upload"></i> Impor File JSON
+                    <input type="file" id="import-json-input" accept=".json" class="hidden" onchange="importJSONFile(event)">
+                </label>
+            </div>
+
+            <textarea id="json-editor-textarea" class="w-full h-80 bg-slate-900 text-green-400 font-mono text-xs p-4 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-yellow-400 overflow-auto" spellcheck="false"></textarea>
+
+            <div class="flex flex-wrap justify-between items-center gap-3 mt-4">
+                <button onclick="reloadDefaultQuestions()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold px-4 py-2 rounded-xl text-xs">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> Reset Format Default
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeModal('data-modal')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-2 rounded-xl text-xs">
+                        Tutup
+                    </button>
+                    <button onclick="saveQuestionsFromEditor()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2 rounded-xl text-xs">
+                        <i class="fa-solid fa-floppy-disk"></i> Simpan Data Soal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-alert-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border-2 border-yellow-500/80 rounded-3xl max-w-sm w-full p-6 shadow-2xl relative text-center">
+            <div id="alert-icon-container" class="text-4xl text-yellow-400 mb-2">
+                <i class="fa-solid fa-circle-info"></i>
+            </div>
+            <h4 id="alert-title" class="font-display text-xl font-bold text-white mb-2">
+                Pemberitahuan
+            </h4>
+            <p id="alert-message" class="text-sm text-slate-300 mb-5 leading-relaxed">
+                Pesan alert kustom...
+            </p>
+            <button onclick="closeModal('custom-alert-modal')" class="btn-3d bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-display font-bold px-6 py-2 rounded-xl text-sm">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <div id="custom-confirm-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-800 border-2 border-red-500/80 rounded-3xl max-w-sm w-full p-6 shadow-2xl relative text-center">
+            <div class="text-4xl text-red-400 mb-2">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h4 id="confirm-title" class="font-display text-xl font-bold text-white mb-2">
+                Konfirmasi Reset
+            </h4>
+            <p id="confirm-message" class="text-sm text-slate-300 mb-5 leading-relaxed">
+                Apakah Anda yakin ingin mereset seluruh skor dan progres pertanyaan?
+            </p>
+            <div class="flex justify-center gap-3">
+                <button onclick="closeModal('custom-confirm-modal')" class="bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-2 rounded-xl text-xs">
+                    Batal
+                </button>
+                <button id="confirm-action-btn" onclick="executeResetGame()" class="bg-red-600 hover:bg-red-500 text-white font-bold px-5 py-2 rounded-xl text-xs">
+                    Ya, Reset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_QUIZ_DATA = [
+            {
+                category: "KUIS TANGGUNG JAWAB & ETIKA",
+                levels: [
+                    {
+                        points: 100,
+                        questions: [
+                            {
+                                id: 1,
+                                code: "100-A",
+                                question: "Kamu mendapat tugas membuat bagian presentasi kelompok. Temanmu mengajak bermain sebelum tugasmu selesai. Apa yang kamu lakukan dan mengapa?",
+                                answer: "Pedoman Jawaban:\n• Jawaban kuat: Memprioritaskan/menyelesaikan tanggung jawab terlebih dahulu, lalu bermain setelahnya.\n• Nilai 0: Masih menunda tetapi punya rencana jelas.\n• Nilai −100: Memilih bermain dan mengabaikan tugas tanpa mempertimbangkan konsekuensi."
+                            },
+                            {
+                                id: 2,
+                                code: "100-B",
+                                question: "Kamu lupa membawa buku yang dibutuhkan untuk pelajaran hari ini. Apa tindakan yang paling bertanggung jawab?",
+                                answer: "Pedoman Jawaban:\nMengakui bahwa lupa, meminta solusi/izin kepada guru, dan mencari alternatif seperti meminjam buku teman. Tidak bertanggung jawab jika berbohong atau menyalahkan orang lain."
+                            },
+                            {
+                                id: 3,
+                                code: "100-C",
+                                question: "Kamu sudah berjanji mengirimkan tugas kepada teman pukul 19.00, tetapi baru mengingatnya pukul 21.00. Apa yang sebaiknya kamu lakukan?",
+                                answer: "Pedoman Jawaban:\nMengakui keterlambatan, meminta maaf, segera mengirimkan tugas, dan membuat cara agar tidak lupa lagi."
+                            },
+                            {
+                                id: 4,
+                                code: "100-D",
+                                question: "Kamu mendapat tugas piket. Temanmu berkata, “Udah, nanti juga ada yang bersihin.” Apa responsmu?",
+                                answer: "Pedoman Jawaban:\nTetap menjalankan bagian piket yang menjadi tanggung jawabnya. Boleh mengajak teman membantu, tetapi tidak menjadikan orang lain sebagai alasan meninggalkan tugas."
+                            },
+                            {
+                                id: 5,
+                                code: "100-E",
+                                question: "Kamu menyadari bahwa kamu salah memasukkan data dalam tugas kelompok. Tidak ada yang menyadarinya. Apa yang kamu lakukan?",
+                                answer: "Pedoman Jawaban:\nMengakui kesalahan kepada kelompok, memperbaiki data, dan mengecek kembali pekerjaan. Tidak bertanggung jawab jika membiarkan karena tidak ada yang tahu."
+                            },
+                            {
+                                id: 6,
+                                code: "100-F",
+                                question: "Temanmu meminta jawaban tugas karena ia belum mengerjakannya. Apa bentuk bantuan yang tetap menghargai tanggung jawab temanmu?",
+                                answer: "Pedoman Jawaban:\nMembantu menjelaskan materi/cara mengerjakan, bukan memberikan jawaban untuk disalin. Bantuan seharusnya tidak mengambil alih tanggung jawab teman."
+                            }
+                        ]
+                    },
+                    {
+                        points: 200,
+                        questions: [
+                            {
+                                id: 1,
+                                code: "200-A",
+                                question: "Kamu ditunjuk menjadi ketua kelompok. Dua anggota kelompok tidak aktif. Apa yang akan kamu lakukan?",
+                                answer: "Pedoman Jawaban:\nMengajak berdiskusi, mencari tahu kendala, membagi tugas kembali bila perlu, dan memastikan masing-masing tetap memiliki tanggung jawab. Tidak bertanggung jawab jika langsung menyalahkan atau mengambil alih seluruh tugas."
+                            },
+                            {
+                                id: 2,
+                                code: "200-B",
+                                question: "Kamu sudah menyelesaikan tugasmu, tetapi anggota kelompok lain belum selesai. Apakah kamu langsung mengerjakan bagian mereka? Jelaskan.",
+                                answer: "Pedoman Jawaban:\nTidak langsung mengambil alih; tanyakan kendala, bantu jika diperlukan, tetapi tetap mendorong teman menyelesaikan bagiannya."
+                            },
+                            {
+                                id: 3,
+                                code: "200-C",
+                                question: "Kamu terlambat mengumpulkan tugas karena lupa. Guru memberi kesempatan mengumpulkan besok. Apa yang akan kamu lakukan agar kesalahan yang sama tidak terulang?",
+                                answer: "Pedoman Jawaban:\nMembuat pengingat, mencatat deadline, menentukan waktu pengerjaan, dan mengevaluasi penyebab lupa. Bukan sekadar mengatakan tidak akan lupa lagi."
+                            },
+                            {
+                                id: 4,
+                                code: "200-D",
+                                question: "Kamu melihat temanmu tidak menjalankan tugas piket yang menjadi tanggung jawabnya. Apa yang kamu lakukan?",
+                                answer: "Pedoman Jawaban:\nMengingatkan dengan baik dan mengajak menyelesaikan tugas. Jika ada kendala, mencari solusi bersama. Tidak bertanggung jawab jika langsung memarahi atau membiarkan."
+                            },
+                            {
+                                id: 5,
+                                code: "200-E",
+                                question: "Kamu sudah berjanji kepada teman untuk membantu mengerjakan tugas kelompok, tetapi pada waktu yang sama keluargamu membutuhkan bantuanmu. Bagaimana kamu menentukan prioritas?",
+                                answer: "Pedoman Jawaban:\nMempertimbangkan urgensi kedua tanggung jawab, berkomunikasi dengan pihak terkait, menentukan prioritas, dan mencari alternatif. Tidak menghilang tanpa penjelasan."
+                            },
+                            {
+                                id: 6,
+                                code: "200-F",
+                                question: "Kelompokmu mendapat nilai rendah. Salah satu anggota langsung menyalahkan anggota lain. Apa yang sebaiknya dilakukan kelompok?",
+                                answer: "Pedoman Jawaban:\nMengevaluasi pekerjaan bersama, mengakui bagian yang kurang, mencari penyebab, dan menentukan perbaikan; bukan saling menyalahkan."
+                            }
+                        ]
+                    },
+                    {
+                        points: 300,
+                        questions: [
+                            {
+                                id: 1,
+                                code: "300-A",
+                                question: "Kamu menjadi ketua kelompok. Seorang anggota tidak mengerjakan tugasnya karena mengatakan sedang mengalami masalah pribadi. Bagaimana kamu menyikapinya tanpa mengabaikan tanggung jawab kelompok?",
+                                answer: "Pedoman Jawaban:\nMenunjukkan empati, menanyakan kendala, tetapi tetap membicarakan tanggung jawab yang perlu diselesaikan dan mencari pembagian/solusi realistis."
+                            },
+                            {
+                                id: 2,
+                                code: "300-B",
+                                question: "Kamu menemukan bahwa temanmu menyalin sebagian besar tugas dari internet. Tugas tersebut harus dikumpulkan atas nama kelompok. Apa yang kamu lakukan?",
+                                answer: "Pedoman Jawaban:\nMembicarakan dengan teman, meminta bagian diperbaiki/dikerjakan dengan cara yang benar, dan memastikan tugas kelompok tidak mengandung plagiarisme."
+                            },
+                            {
+                                id: 3,
+                                code: "300-C",
+                                question: "Kelompokmu sepakat membagi tugas secara adil. Namun, setelah pembagian, kamu mendapat bagian yang menurutmu lebih sulit daripada anggota lain. Apa yang kamu lakukan?",
+                                answer: "Pedoman Jawaban:\nMenyampaikan keberatan dengan baik, membicarakan pembagian tugas, dan bila tetap mendapat bagian tersebut berusaha mengerjakan atau meminta bantuan yang wajar."
+                            },
+                            {
+                                id: 4,
+                                code: "300-D",
+                                question: "Temanmu meminta kamu mengatakan kepada guru bahwa dia sudah mengerjakan tugas, padahal sebenarnya belum. Apa keputusanmu? Jelaskan.",
+                                answer: "Pedoman Jawaban:\nTidak berbohong; menjelaskan kepada teman bahwa kamu tidak dapat mengatakan hal yang tidak benar dan mendorongnya menyampaikan kondisi sebenarnya kepada guru."
+                            },
+                            {
+                                id: 5,
+                                code: "300-E",
+                                question: "Kamu melakukan kesalahan yang menyebabkan kelompokmu kehilangan kesempatan mengikuti sebuah kegiatan. Teman-temanmu kecewa. Apa yang kamu lakukan?",
+                                answer: "Pedoman Jawaban:\nMengakui kesalahan, meminta maaf, tidak mencari alasan, mendengarkan kekecewaan teman, dan mencari cara memperbaiki atau mencegah kesalahan terulang."
+                            },
+                            {
+                                id: 6,
+                                code: "300-F",
+                                question: "Kamu sebenarnya sudah mengetahui bahwa keputusan kelompokmu berpotensi menimbulkan masalah, tetapi semua anggota sudah menyetujuinya. Apakah kamu tetap mengikuti keputusan kelompok? Jelaskan.",
+                                answer: "Pedoman Jawaban:\nMenyampaikan kekhawatiran dan alasan terlebih dahulu. Jika keputusan tetap diambil, ikut menjalankan setelah risiko dipertimbangkan, kecuali jelas melanggar aturan/nilai yang berlaku. Tidak diam lalu menyalahkan kelompok."
+                            }
+                        ]
+                    },
+                    {
+                        points: 400,
+                        questions: [
+                            {
+                                id: 1,
+                                code: "400-A",
+                                question: "Kamu ditunjuk sebagai ketua kelompok. Teman dekatmu adalah anggota yang paling tidak berkontribusi. Jika kamu menegurnya, kamu khawatir hubungan kalian menjadi tidak nyaman. Apa yang kamu lakukan?",
+                                answer: "Pedoman Jawaban:\nMembicarakan masalah secara pribadi dan baik-baik, menggunakan fakta tentang tugas, bukan menyerang pribadi. Tidak membiarkan hanya karena teman dekat."
+                            },
+                            {
+                                id: 2,
+                                code: "400-B",
+                                question: "Kelompokmu memiliki waktu sangat terbatas. Ada satu anggota yang belum menyelesaikan tugasnya. Jika kamu mengambil alih pekerjaannya, tugas mungkin selesai. Namun, dia tidak belajar bertanggung jawab. Apa keputusanmu?",
+                                answer: "Pedoman Jawaban:\nMencari jalan tengah: membantu bagian yang sulit, membagi pekerjaan secara realistis, tetapi tetap memberi anggota tersebut bagian yang harus diselesaikan. Pertimbangkan tugas selesai dan tanggung jawab tetap dimiliki anggota."
+                            },
+                            {
+                                id: 3,
+                                code: "400-C",
+                                question: "Kamu sudah berusaha menjalankan tanggung jawabmu, tetapi hasil akhirnya tetap tidak sesuai harapan. Menurutmu, apakah kamu tetap bertanggung jawab? Jelaskan.",
+                                answer: "Pedoman Jawaban:\nYa. Tanggung jawab bukan berarti selalu menghasilkan hasil sempurna; yang penting menjalankan tugas dengan sungguh-sungguh, mengevaluasi hasil, menerima konsekuensi, dan memperbaiki jika memungkinkan."
+                            },
+                            {
+                                id: 4,
+                                code: "400-D",
+                                question: "Kamu mengetahui bahwa temanmu melakukan kesalahan dalam tugas kelompok. Ia meminta kamu untuk merahasiakannya karena takut dimarahi. Apa yang kamu lakukan?",
+                                answer: "Pedoman Jawaban:\nTidak menutupi kesalahan; mengajak teman bertanggung jawab dan mencari cara menyampaikan/memperbaikinya."
+                            },
+                            {
+                                id: 5,
+                                code: "400-E",
+                                question: "Kelompokmu mendapat pilihan:\nA) Tugas cepat selesai tetapi sebagian anggota tidak mendapat kesempatan berkontribusi\nB) Kesempatan dibagi secara adil tetapi membutuhkan waktu lebih lama dan berisiko tidak selesai\nPilihan mana yang kamu ambil? Jelaskan pertimbangannya.",
+                                answer: "Pedoman Jawaban:\nTidak ada pilihan mutlak. Poin penuh jika mampu mempertimbangkan kontribusi, deadline, konsekuensi, dan solusi. Misalnya memilih B dengan strategi agar tetap selesai; atau memilih A dalam kondisi tertentu dengan memastikan anggota lain tetap mendapat peran."
+                            },
+                            {
+                                id: 6,
+                                code: "400-F",
+                                question: "Kamu sudah berkomitmen melakukan sesuatu untuk kelompok, tetapi kemudian menyadari bahwa kamu tidak mampu menyelesaikannya tepat waktu. Apa yang seharusnya kamu lakukan sebelum batas waktu tiba?",
+                                answer: "Pedoman Jawaban:\nMemberi tahu kelompok sebelum deadline, menjelaskan kendala secara jujur, menawarkan alternatif, dan tidak menunggu sampai batas waktu terlewat."
+                            }
+                        ]
+                    },
+                    {
+                        points: 500,
+                        questions: [
+                            {
+                                id: 1,
+                                code: "500-A",
+                                question: "Seorang teman meminta bantuan mengerjakan tugasnya karena ia sedang kesulitan memahami materi. Apakah membantu teman termasuk bentuk tanggung jawab? Jelaskan kapan membantu menjadi tanggung jawab dan kapan justru mengambil alih tanggung jawab orang lain.",
+                                answer: "Pedoman Jawaban:\nBisa menjadi tanggung jawab sosial untuk membantu, tetapi bantuan tidak mengambil alih tugas teman. Contoh: membantu menjelaskan cara, sementara teman tetap mengerjakan."
+                            },
+                            {
+                                id: 2,
+                                code: "500-B",
+                                question: "Kamu melakukan kesalahan yang tidak diketahui siapa pun. Kalau kamu mengaku, kamu mungkin mendapat teguran. Kalau diam, tidak ada yang tahu. Apa yang kamu lakukan? Mengapa?",
+                                answer: "Pedoman Jawaban:\nMengakui kesalahan dan berusaha memperbaikinya. Tanggung jawab tetap berlaku meskipun kesalahan tidak diketahui orang lain."
+                            },
+                            {
+                                id: 3,
+                                code: "500-C",
+                                question: "Kelompokmu gagal menyelesaikan tugas tepat waktu. Kamu merasa sebenarnya penyebab utama adalah salah satu anggota kelompok. Apakah kamu boleh mengatakan kepada guru bahwa kesalahan tersebut bukan tanggung jawabmu? Jelaskan.",
+                                answer: "Pedoman Jawaban:\nBoleh menjelaskan bagian tanggung jawab pribadi dan fakta yang terjadi, tetapi tidak seharusnya melepaskan seluruh tanggung jawab kelompok atau menyalahkan satu orang. Tunjukkan tanggung jawab pribadi sekaligus kelompok."
+                            },
+                            {
+                                id: 4,
+                                code: "500-D",
+                                question: "Kamu sudah memiliki banyak tanggung jawab: tugas sekolah, kegiatan organisasi, dan membantu keluarga. Kemudian kamu diminta mengambil tanggung jawab tambahan. Bagaimana kamu menentukan apakah harus menerima atau menolak tanggung jawab tersebut?",
+                                answer: "Pedoman Jawaban:\nMempertimbangkan kemampuan/waktu, tingkat kepentingan, konsekuensi, tanggung jawab yang sudah dimiliki, dan kemampuan menyelesaikan komitmen. Menolak dapat menjadi keputusan bertanggung jawab jika memang tidak mampu menjalankannya dengan baik."
+                            },
+                            {
+                                id: 5,
+                                code: "500-E",
+                                question: "Kamu mendapat kesempatan mengulang satu keputusan dalam permainan tadi. Keputusan mana yang ingin kamu ubah dan apa yang akan kamu lakukan secara berbeda?",
+                                answer: "Pedoman Jawaban:\nTidak ada jawaban mutlak. +500 jika mampu mengidentifikasi keputusan, menjelaskan alasan, menyadari konsekuensi, dan menyebutkan tindakan berbeda yang akan dilakukan."
+                            },
+                            {
+                                id: 6,
+                                code: "500-F",
+                                question: "Mana yang lebih menunjukkan tanggung jawab:\nA) Tidak pernah melakukan kesalahan, atau\nB) Berani mengakui dan memperbaiki kesalahan?\nPilih salah satu dan jelaskan alasannya.",
+                                answer: "Pedoman Jawaban:\nJawaban kuat biasanya B karena manusia dapat melakukan kesalahan dan tanggung jawab terlihat dari kesediaan mengakui, menerima konsekuensi, dan memperbaiki. Jika memilih A, guru/host dapat menggali pemahaman siswa tentang kesalahan dan tanggung jawab; nilai didasarkan pada kualitas alasan."
+                            }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        /* Game State & Persistency */
+        let quizData = [];
+        let teams = [
+            { name: "TIM A", score: 0, color: "bg-red-500" },
+            { name: "TIM B", score: 0, color: "bg-blue-500" },
+            { name: "TIM C", score: 0, color: "bg-emerald-500" },
+            { name: "TIM D", score: 0, color: "bg-purple-500" },
+            { name: "TIM E", score: 0, color: "bg-amber-500" }
+        ];
+        let activeTeamCount = 5;
+        let usedQuestions = {};
+
+        let currentSelection = {
+            catIndex: 0,
+            levelIndex: 0,
+            qIndex: 0
+        };
+        let editingTeamIndex = null;
+        let isSoundOn = true;
+
+        /* LocalStorage Helpers */
+        function saveToLocalStorage() {
+            try {
+                localStorage.setItem('quizData', JSON.stringify(quizData));
+                localStorage.setItem('teams', JSON.stringify(teams));
+                localStorage.setItem('activeTeamCount', activeTeamCount.toString());
+                localStorage.setItem('usedQuestions', JSON.stringify(usedQuestions));
+            } catch (e) {
+                console.error("Gagal menyimpan data ke LocalStorage", e);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            try {
+                const storedQuiz = localStorage.getItem('quizData');
+                const storedTeams = localStorage.getItem('teams');
+                const storedTeamCount = localStorage.getItem('activeTeamCount');
+                const storedUsed = localStorage.getItem('usedQuestions');
+
+                if (storedQuiz) quizData = JSON.parse(storedQuiz);
+                else quizData = JSON.parse(JSON.stringify(DEFAULT_QUIZ_DATA));
+
+                if (storedTeams) teams = JSON.parse(storedTeams);
+                if (storedTeamCount) activeTeamCount = parseInt(storedTeamCount, 10);
+                if (storedUsed) usedQuestions = JSON.parse(storedUsed);
+            } catch (e) {
+                quizData = JSON.parse(JSON.stringify(DEFAULT_QUIZ_DATA));
+            }
+        }
+
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playBeep(freq = 440, duration = 0.1, type = 'sine') {
+            if (!isSoundOn) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) { console.log(e); }
+        }
+
+        function playClickSound() { playBeep(520, 0.08, 'triangle'); }
+        function playOpenModalSound() { playBeep(660, 0.15, 'sine'); }
+        function playRevealSound() {
+            if (!isSoundOn) return;
+            playBeep(440, 0.1, 'sine');
+            setTimeout(() => playBeep(880, 0.25, 'sine'), 100);
+        }
+        function playPointGainSound() {
+            if (!isSoundOn) return;
+            playBeep(523, 0.08, 'square');
+            setTimeout(() => playBeep(659, 0.08, 'square'), 90);
+            setTimeout(() => playBeep(783, 0.15, 'square'), 180);
+        }
+        function playTimeWarningSound() { playBeep(880, 0.08, 'sawtooth'); }
+        function playTimeUpSound() {
+            if (!isSoundOn) return;
+            playBeep(300, 0.2, 'sawtooth');
+            setTimeout(() => playBeep(200, 0.4, 'sawtooth'), 200);
+        }
+
+        function toggleSound() {
+            isSoundOn = !isSoundOn;
+            const btnText = document.getElementById('sound-text');
+            const btnIcon = document.getElementById('sound-icon');
+            if (isSoundOn) {
+                btnText.innerText = "SOUND ON";
+                btnIcon.className = "fa-solid fa-volume-high text-yellow-400";
+            } else {
+                btnText.innerText = "SOUND OFF";
+                btnIcon.className = "fa-solid fa-volume-xmark text-slate-400";
+            }
+        }
+
+        /* Custom Alert & Confirm Modals */
+        function showAlert(title, message) {
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-message').innerText = message;
+            showModal('custom-alert-modal');
+        }
+
+        function requestResetGame() {
+            playClickSound();
+            showModal('custom-confirm-modal');
+        }
+
+        function executeResetGame() {
+            usedQuestions = {};
+            teams.forEach(t => t.score = 0);
+            saveToLocalStorage();
+            renderScoreboard();
+            renderBoard();
+            resetTimer();
+            closeModal('custom-confirm-modal');
+            showAlert("Berhasil", "Seluruh skor dan status kuis telah direset!");
+        }
+
+        function renderScoreboard() {
+            const container = document.getElementById('scoreboard-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            let maxScore = -Infinity;
+            teams.slice(0, activeTeamCount).forEach(t => {
+                if (t.score > maxScore) maxScore = t.score;
+            });
+
+            for (let i = 0; i < activeTeamCount; i++) {
+                const team = teams[i];
+                const isLeader = (team.score === maxScore && team.score > 0);
+
+                const card = document.createElement('div');
+                card.className = `bg-slate-900/90 border-2 ${isLeader ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.35)]' : 'border-slate-700/80'} rounded-2xl p-3 flex flex-col justify-between relative transition-all duration-300 hover:border-slate-500`;
+
+                card.innerHTML = `
+                    ${isLeader ? '<div class="leader-badge absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-400 to-amber-400 text-slate-950 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow flex items-center gap-1 z-10 uppercase tracking-wider"><i class="fa-solid fa-crown text-amber-900"></i> MEMIMPIN</div>' : ''}
+                    
+                    <div class="flex items-center justify-between gap-1 mb-1">
+                        <input type="text" value="${team.name}" onchange="updateTeamName(${i}, this.value)" 
+                            class="bg-transparent font-display font-bold text-sm text-slate-200 focus:outline-none focus:bg-slate-800/80 px-1.5 py-0.5 rounded w-full cursor-pointer hover:bg-slate-800/50 transition-colors" title="Klik untuk ubah nama tim">
+                        <span class="w-3 h-3 rounded-full ${team.color} flex-shrink-0 shadow-sm"></span>
+                    </div>
+
+                    <div class="text-center my-1">
+                        <div id="score-display-${i}" class="font-display text-3xl sm:text-4xl font-extrabold text-yellow-300 tracking-wide drop-shadow-md">
+                            ${team.score}
+                        </div>
+                        <span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">POIN</span>
+                    </div>
+
+                    <div class="flex items-center justify-center gap-1.5 mt-2 pt-2 border-t border-slate-800">
+                        <button onclick="addScore(${i}, -100)" class="bg-red-500/20 hover:bg-red-500/40 text-red-300 hover:text-white text-xs font-bold px-2 py-1 rounded-lg border border-red-500/30 transition-all active:scale-95" title="Kurangi 100 Poin">-100</button>
+                        <button onclick="addScore(${i}, 100)" class="bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 hover:text-white text-xs font-bold px-2 py-1 rounded-lg border border-emerald-500/30 transition-all active:scale-95" title="Tambah 100 Poin">+100</button>
+                        <button onclick="openCustomScoreModal(${i})" class="bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold px-2 py-1 rounded-lg border border-slate-700 transition-all" title="Edit Poin Manual"><i class="fa-solid fa-pen-to-square"></i></button>
+                    </div>
+                `;
+                container.appendChild(card);
+            }
+        }
+
+        function addScore(teamIdx, points) {
+            playPointGainSound();
+            teams[teamIdx].score += points;
+            saveToLocalStorage();
+            
+            const scoreEl = document.getElementById(`score-display-${teamIdx}`);
+            if (scoreEl) {
+                scoreEl.classList.add('scale-125', points > 0 ? 'text-emerald-400' : 'text-red-400');
+                setTimeout(() => {
+                    scoreEl.classList.remove('scale-125', 'text-emerald-400', 'text-red-400');
+                }, 300);
+            }
+
+            renderScoreboard();
+            renderAwardTeamButtons();
+
+            if (points >= 300) {
+                triggerConfetti();
+            }
+        }
+
+        function updateTeamName(idx, newName) {
+            if (newName.trim()) {
+                teams[idx].name = newName.trim().toUpperCase();
+                saveToLocalStorage();
+                renderScoreboard();
+                renderAwardTeamButtons();
+            }
+        }
+
+        function changeTeamCount(countStr) {
+            playClickSound();
+            activeTeamCount = parseInt(countStr, 10);
+            saveToLocalStorage();
+            renderScoreboard();
+            renderAwardTeamButtons();
+        }
+
+        function openCustomScoreModal(teamIdx) {
+            playOpenModalSound();
+            editingTeamIndex = teamIdx;
+            document.getElementById('custom-score-team-title').innerText = `EDIT SKOR - ${teams[teamIdx].name}`;
+            document.getElementById('custom-score-input').value = teams[teamIdx].score;
+            showModal('custom-score-modal');
+        }
+
+        function saveCustomScore() {
+            playClickSound();
+            const val = parseInt(document.getElementById('custom-score-input').value, 10);
+            if (!isNaN(val) && editingTeamIndex !== null) {
+                teams[editingTeamIndex].score = val;
+                saveToLocalStorage();
+                renderScoreboard();
+                renderAwardTeamButtons();
+            }
+            closeModal('custom-score-modal');
+        }
+
+        /* Leaderboard & Confetti */
+        function openLeaderboardModal() {
+            playOpenModalSound();
+            const container = document.getElementById('leaderboard-ranks-list');
+            container.innerHTML = '';
+
+            const activeTeams = teams.slice(0, activeTeamCount)
+                .map((t, originalIndex) => ({ ...t, originalIndex }))
+                .sort((a, b) => b.score - a.score);
+
+            const highestScore = activeTeams[0]?.score || 0;
+
+            activeTeams.forEach((t, rankIdx) => {
+                let rankBadge = `<span class="font-display text-lg font-bold w-8 text-slate-400 text-center">#${rankIdx + 1}</span>`;
+                let borderStyle = "border-slate-700/80 bg-slate-800/80";
+
+                if (rankIdx === 0 && t.score > 0) {
+                    rankBadge = `<span class="text-2xl w-8 text-center">🥇</span>`;
+                    borderStyle = "border-yellow-400 bg-yellow-500/10 shadow-[0_0_15px_rgba(250,204,21,0.2)]";
+                } else if (rankIdx === 1 && t.score > 0) {
+                    rankBadge = `<span class="text-2xl w-8 text-center">🥈</span>`;
+                    borderStyle = "border-slate-400 bg-slate-400/10";
+                } else if (rankIdx === 2 && t.score > 0) {
+                    rankBadge = `<span class="text-2xl w-8 text-center">🥉</span>`;
+                    borderStyle = "border-amber-600 bg-amber-600/10";
+                }
+
+                const percent = highestScore > 0 ? Math.max(8, Math.min(100, Math.round((Math.max(0, t.score) / highestScore) * 100))) : 0;
+
+                const item = document.createElement('div');
+                item.className = `border-2 ${borderStyle} rounded-2xl p-4 flex flex-col gap-2 transition-all`;
+
+                item.innerHTML = `
+                    <div class="flex items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            ${rankBadge}
+                            <div>
+                                <span class="font-display font-bold text-lg text-white block">${t.name}</span>
+                                <span class="text-xs text-slate-400">Tim ke-${t.originalIndex + 1}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-display text-2xl font-black text-yellow-300">${t.score}</span>
+                            <span class="text-xs text-slate-400 block font-semibold">POIN</span>
+                        </div>
+                    </div>
+                    
+                    <div class="w-full bg-slate-900/90 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div class="${t.color} h-full rounded-full transition-all duration-700" style="width: ${percent}%;"></div>
+                    </div>
+                `;
+
+                container.appendChild(item);
+            });
+
+            showModal('leaderboard-modal');
+        }
+
+        let confettiParticles = [];
+        function triggerConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const colors = ['#FFD166', '#EF476F', '#118AB2', '#06D6A0', '#8338EC', '#3A86FF'];
+            confettiParticles = [];
+
+            for (let i = 0; i < 90; i++) {
+                confettiParticles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    speedY: Math.random() * 4 + 3,
+                    speedX: Math.random() * 2 - 1,
+                    rotation: Math.random() * 360,
+                    rotationSpeed: Math.random() * 10 - 5
+                });
+            }
+
+            let animationFrames = 0;
+            function animateConfetti() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                confettiParticles.forEach((p) => {
+                    p.y += p.speedY;
+                    p.x += p.speedX;
+                    p.rotation += p.rotationSpeed;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate((p.rotation * Math.PI) / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+                });
+
+                animationFrames++;
+                if (animationFrames < 180) {
+                    requestAnimationFrame(animateConfetti);
+                } else {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            animateConfetti();
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+            board.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 max-w-6xl mx-auto";
+
+            const categoryObj = quizData[0] || DEFAULT_QUIZ_DATA[0];
+
+            categoryObj.levels.forEach((levelObj, levelIdx) => {
+                let usedCount = 0;
+                levelObj.questions.forEach(q => {
+                    const key = `0_${levelIdx}_${q.id}`;
+                    if (usedQuestions[key]) usedCount++;
+                });
+
+                const totalQuestions = levelObj.questions.length;
+                const remaining = totalQuestions - usedCount;
+                const isCompleted = remaining === 0;
+
+                const card = document.createElement('div');
+                card.className = "flex flex-col h-full";
+
+                const tile = document.createElement('button');
+                tile.onclick = () => {
+                    if (!isCompleted) openSelectModal(0, levelIdx);
+                };
+
+                if (isCompleted) {
+                    tile.className = "tile-completed btn-3d rounded-3xl p-6 h-48 w-full flex flex-col items-center justify-center text-center opacity-60";
+                    tile.innerHTML = `
+                        <span class="font-display text-4xl font-bold text-slate-500 line-through">${levelObj.points}</span>
+                        <span class="text-sm font-bold text-slate-400 mt-1">POIN</span>
+                        <span class="text-xs font-bold text-emerald-400 mt-3 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
+                            <i class="fa-solid fa-circle-check"></i> SELESAI (6/6)
+                        </span>
+                    `;
+                } else {
+                    tile.className = "tile-active btn-3d rounded-3xl p-6 h-48 w-full flex flex-col items-center justify-center text-center cursor-pointer hover:scale-105 transition-transform";
+                    tile.innerHTML = `
+                        <span class="font-display text-5xl font-extrabold text-yellow-300 drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)]">${levelObj.points}</span>
+                        <span class="text-sm font-bold text-cyan-200 mt-1 tracking-wider uppercase">POIN</span>
+                        <span class="text-xs font-bold text-cyan-200 mt-4 bg-slate-900/70 px-3 py-1 rounded-full border border-cyan-400/40 backdrop-blur-sm">
+                            ${remaining} / ${totalQuestions} Soal Tersedia
+                        </span>
+                    `;
+                }
+
+                card.appendChild(tile);
+                board.appendChild(card);
+            });
+        }
+
+        function openSelectModal(catIdx, levelIdx) {
+            playOpenModalSound();
+            currentSelection.catIndex = catIdx;
+            currentSelection.levelIndex = levelIdx;
+
+            const category = quizData[catIdx].category || "KUIS UTAMA";
+            const levelObj = quizData[catIdx].levels[levelIdx];
+
+            document.getElementById('select-category-badge').innerText = category;
+            document.getElementById('select-points-heading').innerText = `${levelObj.points} POIN`;
+
+            const container = document.getElementById('question-buttons-container');
+            container.innerHTML = '';
+
+            let availableCount = 0;
+
+            levelObj.questions.forEach((q, qIdx) => {
+                const key = `${catIdx}_${levelIdx}_${q.id}`;
+                const isUsed = !!usedQuestions[key];
+
+                if (!isUsed) availableCount++;
+
+                const btn = document.createElement('button');
+                btn.className = isUsed 
+                    ? "bg-slate-700/60 border border-slate-600 text-slate-400 p-4 rounded-2xl font-bold text-left flex items-center justify-between cursor-not-allowed opacity-60"
+                    : "btn-3d bg-slate-700 hover:bg-blue-600 border border-slate-500 text-white p-4 rounded-2xl font-bold text-left flex items-center justify-between cursor-pointer";
+
+                btn.disabled = isUsed;
+                btn.onclick = () => {
+                    closeModal('select-modal');
+                    openQuestionModal(catIdx, levelIdx, qIdx);
+                };
+
+                const qCode = q.code || `SOAL #${qIdx + 1}`;
+
+                btn.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="px-2.5 py-1 rounded-lg ${isUsed ? 'bg-slate-800 text-slate-500' : 'bg-yellow-400 text-slate-900'} flex items-center justify-center font-display font-bold text-xs">
+                            ${qCode}
+                        </span>
+                        <span>SOAL ${qCode}</span>
+                    </div>
+                    ${isUsed ? '<span class="text-xs bg-slate-800 text-emerald-400 px-2.5 py-1 rounded-full font-bold"><i class="fa-solid fa-check"></i> SUDAH</span>' : '<span class="text-xs text-cyan-300">PILIH <i class="fa-solid fa-chevron-right"></i></span>'}
+                `;
+
+                container.appendChild(btn);
+            });
+
+            document.getElementById('select-status-text').innerText = `Tersedia: ${availableCount} / ${levelObj.questions.length} Pertanyaan`;
+
+            showModal('select-modal');
+        }
+
+        /* Timer state */
+        let timerInterval = null;
+        let timerSeconds = 25;
+
+        function openQuestionModal(catIdx, levelIdx, qIdx) {
+            playOpenModalSound();
+            currentSelection.catIndex = catIdx;
+            currentSelection.levelIndex = levelIdx;
+            currentSelection.qIndex = qIdx;
+
+            const category = quizData[catIdx].category;
+            const levelObj = quizData[catIdx].levels[levelIdx];
+            const qObj = levelObj.questions[qIdx];
+
+            document.getElementById('qmodal-cat-badge').innerText = category;
+            document.getElementById('qmodal-point-badge').innerText = `${levelObj.points} POIN`;
+            document.getElementById('qmodal-index-badge').innerText = `SOAL ${qObj.code || '#' + (qIdx + 1)}`;
+            document.getElementById('qmodal-question-text').innerText = qObj.question;
+            document.getElementById('qmodal-answer-text').innerText = qObj.answer;
+
+            document.getElementById('qmodal-answer-box').classList.add('hidden');
+            document.getElementById('qmodal-reveal-btn').classList.remove('hidden');
+            document.getElementById('qmodal-finish-btn').classList.add('hidden');
+
+            renderAwardTeamButtons();
+            resetTimer();
+            showModal('question-modal');
+        }
+
+        function renderAwardTeamButtons() {
+            const container = document.getElementById('award-teams-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const levelObj = quizData[currentSelection.catIndex]?.levels[currentSelection.levelIndex];
+            const points = levelObj ? levelObj.points : 0;
+
+            for (let i = 0; i < activeTeamCount; i++) {
+                const btn = document.createElement('button');
+                btn.className = "bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition";
+                btn.innerHTML = `<i class="fa-solid fa-plus"></i> ${teams[i].name} (+${points})`;
+                btn.onclick = () => {
+                    addScore(i, points);
+                };
+                container.appendChild(btn);
+            }
+        }
+
+        function startTimer() {
+            if (timerInterval) return;
+            playClickSound();
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                updateTimerDisplay();
+
+                if (timerSeconds <= 5 && timerSeconds > 0) {
+                    playTimeWarningSound();
+                }
+
+                if (timerSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    playTimeUpSound();
+                    document.getElementById('timer-display').innerText = "WAKTU HABIS!";
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            playClickSound();
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            timerSeconds = 25;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timer-display');
+            display.innerText = timerSeconds;
+
+            if (timerSeconds <= 5) {
+                display.classList.add('timer-warning');
+            } else {
+                display.classList.remove('timer-warning');
+            }
+        }
+
+        function revealAnswer() {
+            playRevealSound();
+            document.getElementById('qmodal-answer-box').classList.remove('hidden');
+            document.getElementById('qmodal-reveal-btn').classList.add('hidden');
+            document.getElementById('qmodal-finish-btn').classList.remove('hidden');
+            pauseTimer();
+        }
+
+        function finishQuestion() {
+            playClickSound();
+            const { catIndex, levelIndex, qIndex } = currentSelection;
+            const qObj = quizData[catIndex].levels[levelIndex].questions[qIndex];
+            
+            const key = `${catIndex}_${levelIndex}_${qObj.id}`;
+            usedQuestions[key] = true;
+            saveToLocalStorage();
+
+            closeModal('question-modal');
+            renderBoard();
+            
+            const levelObj = quizData[catIndex].levels[levelIndex];
+            let usedCount = 0;
+            levelObj.questions.forEach(q => {
+                if (usedQuestions[`${catIndex}_${levelIndex}_${q.id}`]) usedCount++;
+            });
+
+            if (usedCount < levelObj.questions.length) {
+                openSelectModal(catIndex, levelIndex);
+            } else {
+                playPointGainSound();
+                triggerConfetti();
+            }
+        }
+
+        function openDataModal() {
+            playOpenModalSound();
+            const textarea = document.getElementById('json-editor-textarea');
+            textarea.value = JSON.stringify(quizData, null, 2);
+            showModal('data-modal');
+        }
+
+        function saveQuestionsFromEditor() {
+            playClickSound();
+            try {
+                const textarea = document.getElementById('json-editor-textarea');
+                const parsed = JSON.parse(textarea.value);
+                
+                if (!Array.isArray(parsed)) throw new Error("Data harus berupa Array.");
+
+                quizData = parsed;
+                usedQuestions = {};
+                saveToLocalStorage();
+                renderBoard();
+                closeModal('data-modal');
+                showAlert("Sukses", "Data pertanyaan berhasil disimpan!");
+            } catch (err) {
+                showAlert("Error Format JSON", "Format tidak valid: " + err.message);
+            }
+        }
+
+        function reloadDefaultQuestions() {
+            playClickSound();
+            quizData = JSON.parse(JSON.stringify(DEFAULT_QUIZ_DATA));
+            document.getElementById('json-editor-textarea').value = JSON.stringify(quizData, null, 2);
+            usedQuestions = {};
+            saveToLocalStorage();
+            renderBoard();
+        }
+
+        function exportJSONFile() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(quizData, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "quiz_time_data.json");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        function importJSONFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (Array.isArray(parsed)) {
+                        quizData = parsed;
+                        usedQuestions = {};
+                        saveToLocalStorage();
+                        document.getElementById('json-editor-textarea').value = JSON.stringify(quizData, null, 2);
+                        renderBoard();
+                        showAlert("Berhasil", "File JSON berhasil diimpor!");
+                    } else {
+                        showAlert("Error", "Struktur JSON tidak valid.");
+                    }
+                } catch (err) {
+                    showAlert("Error", "Gagal membaca file JSON: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        /* Modals & Fullscreen */
+        function showModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            if (id === 'question-modal') pauseTimer();
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => console.log(err));
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            // Space bar for timer toggle
+            if (e.code === 'Space' && !document.getElementById('question-modal').classList.contains('hidden')) {
+                const target = e.target;
+                if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+                    e.preventDefault();
+                    if (timerInterval) pauseTimer();
+                    else startTimer();
+                }
+            }
+            // Key 'R' for timer reset
+            if ((e.key === 'r' || e.key === 'R') && !document.getElementById('question-modal').classList.contains('hidden')) {
+                const target = e.target;
+                if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+                    resetTimer();
+                }
+            }
+            // Escape key closes open modals
+            if (e.key === 'Escape') {
+                ['select-modal', 'question-modal', 'leaderboard-modal', 'custom-score-modal', 'data-modal', 'custom-alert-modal', 'custom-confirm-modal'].forEach(id => {
+                    closeModal(id);
+                });
+            }
+        });
+
+        /* Initialization */
+        window.onload = function() {
+            loadFromLocalStorage();
+            
+            const countSelect = document.getElementById('team-count-select');
+            if (countSelect) countSelect.value = activeTeamCount.toString();
+
+            renderScoreboard();
+            renderBoard();
+        };
+    </script>
+</body>
+</html>
